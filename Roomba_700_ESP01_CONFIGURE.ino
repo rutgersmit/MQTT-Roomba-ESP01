@@ -169,10 +169,13 @@ void sendInfoRoomba()
 
 void awake()
 {
-  digitalWrite(noSleepPin, LOW);
-  delay(500);
   digitalWrite(noSleepPin, HIGH);
   delay(1000);
+  digitalWrite(noSleepPin, LOW);
+  delay(1000);
+  digitalWrite(noSleepPin, HIGH);
+  delay(1000);
+  digitalWrite(noSleepPin, LOW);
 }
 
 
@@ -192,6 +195,7 @@ void setup()
 
 void loop()
 {
+  delay(1000);
   if (!client.connected())
   {
     reconnect();
