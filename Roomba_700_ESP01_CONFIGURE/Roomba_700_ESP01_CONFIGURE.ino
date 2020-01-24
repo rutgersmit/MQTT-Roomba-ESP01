@@ -36,6 +36,7 @@ uint8_t tempBuf[10];
 
 void setup_wifi()
 {
+  WiFi.mode(WIFI_STA); // Station mode: disable AP broadcast
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
