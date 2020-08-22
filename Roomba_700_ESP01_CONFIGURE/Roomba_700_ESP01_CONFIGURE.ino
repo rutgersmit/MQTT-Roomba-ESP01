@@ -36,10 +36,12 @@ uint8_t tempBuf[10];
 
 void setup_wifi()
 {
+  Serial.println("setup_wifi");
   WiFi.mode(WIFI_STA); // Station mode: disable AP broadcast
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
+    Serial.println("delaying setup_wifi");
     delay(500);
   }
 }
@@ -50,17 +52,24 @@ void reconnect()
   int retries = 0;
   while (!client.connected())
   {
-    if(retries < 50)
+    Serial.print("reconnect (");
+    Serial.print(retries);
+    Serial.println(")");
+    
+    if (retries < 50)
     {
+      Serial.print("connecting to MQTT server: ");
+      Serial.println(mqtt_client_name);
+      
       // Attempt to connect
-      if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass, "roomba/status", 0, 0, "Dead Somewhere"))
+      if (client.connect(mqtt_client_name, mqtt_user, mqtt_pass, "roomba/status", 0, 0, "Dead somewhere"))
       {
         // Once connected, publish an announcement...
-        if(boot == false)
+        if (boot == false)
         {
           client.publish("checkIn/roomba", "Reconnected");
         }
-        if(boot == true)
+        else
         {
           client.publish("checkIn/roomba", "Rebooted");
           boot = false;
@@ -75,9 +84,12 @@ void reconnect()
         delay(5000);
       }
     }
-    if(retries >= 50)
+    if (retries >= 50)
     {
-    ESP.restart();
+      Serial.print("Restarting ESP after ");
+      Serial.print(retries);
+      Serial.println(" wifi connect retries");
+      ESP.restart();
     }
   }
 }
@@ -87,82 +99,101 @@ void callback(char* topic, byte* payload, unsigned int length)
   String newTopic = topic;
   payload[length] = '\0';
   String newPayload = String((char *)payload);
+
+  Serial.print("callback - topic: '");
+  Serial.print(newTopic);
+  Serial.print("', payload: '");
+  Serial.print(newPayload);
+  Serial.println("'");
+  
   if (newTopic == "roomba/commands")
   {
     if (newPayload == "start")
     {
       startCleaning();
     }
-    if (newPayload == "stop")
+    else if (newPayload == "stop")
     {
       stopCleanig();
     }
-    if (newPayload == "home")
+    else if (newPayload == "home")
     {
       goHome();
     }
-    if (newPayload == "status")
+    else if (newPayload == "status")
     {
       sendInfoRoomba();
     }
-
   }
 }
 
 
 void startCleaning()
 {
+  Serial.println("startCleaning");
   awake();
   Serial.write(128);
   delay(50);
+
   Serial.write(131);
   delay(50);
+
   Serial.write(135);
   client.publish("roomba/status", "Cleaning");
 }
 
 void stopCleanig()
 {
+  Serial.println("stopCleaning");
   Serial.write(128);
   delay(50);
+
   Serial.write(135);
   client.publish("roomba/status", "Halted");
 }
 
 void goHome()
 {
+  Serial.println("goHome");
   awake();
   Serial.write(128);
   delay(50);
+
   Serial.write(131);
   delay(50);
+
   Serial.write(143);
   client.publish("roomba/status", "Returning");
 }
 
 void sendInfoRoomba()
 {
+  Serial.println("sendInfoRoomba");
   awake();
   roomba.start();
   roomba.getSensors(21, tempBuf, 1);
   battery_Voltage = tempBuf[0];
   delay(50);
+
   roomba.getSensors(25, tempBuf, 2);
-  battery_Current_mAh = tempBuf[1]+256*tempBuf[0];
+  battery_Current_mAh = tempBuf[1] + 256 * tempBuf[0];
   delay(50);
+
   roomba.getSensors(26, tempBuf, 2);
-  battery_Total_mAh = tempBuf[1]+256*tempBuf[0];
-  if(battery_Total_mAh != 0)
+  battery_Total_mAh = tempBuf[1] + 256 * tempBuf[0];
+
+  if (battery_Total_mAh != 0)
   {
-    int nBatPcent = 100*battery_Current_mAh/battery_Total_mAh;
+    int nBatPcent = 100 * battery_Current_mAh / battery_Total_mAh;
     String temp_str2 = String(nBatPcent);
     temp_str2.toCharArray(battery_percent_send, temp_str2.length() + 1); //packaging up the data to publish to mqtt
     client.publish("roomba/battery", battery_percent_send);
   }
-  if(battery_Total_mAh == 0)
+  else if (battery_Total_mAh == 0)
   {
     client.publish("roomba/battery", "NO DATA");
   }
+
   String temp_str = String(battery_Voltage);
   temp_str.toCharArray(battery_Current_mAh_send, temp_str.length() + 1); //packaging up the data to publish to mqtt
   client.publish("roomba/charging", battery_Current_mAh_send);
@@ -170,12 +201,16 @@ void sendInfoRoomba()
 
 void awake()
 {
+  Serial.println("awake");
   digitalWrite(noSleepPin, HIGH);
   delay(1000);
+
   digitalWrite(noSleepPin, LOW);
   delay(1000);
+
   digitalWrite(noSleepPin, HIGH);
   delay(1000);
+
   digitalWrite(noSleepPin, LOW);
 }
 
@@ -185,18 +220,23 @@ void setup()
   pinMode(noSleepPin, OUTPUT);
   digitalWrite(noSleepPin, HIGH);
   Serial.begin(115200);
+  Serial.println("setup");
   Serial.write(129);
   delay(50);
+
   Serial.write(11);
   delay(50);
+
   setup_wifi();
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+  client.publish("roomba/status", "Initialized");
 }
 
 void loop()
 {
   delay(1000);
+
   if (!client.connected())
   {
     reconnect();
