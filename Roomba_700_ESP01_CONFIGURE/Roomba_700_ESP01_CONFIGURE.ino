@@ -38,6 +38,7 @@ void setup_wifi()
 {
   Serial.println("setup_wifi");
   WiFi.mode(WIFI_STA); // Station mode: disable AP broadcast
+  WiFi.hostname("Roomba");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
